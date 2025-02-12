@@ -1,0 +1,6 @@
+{% if error %}
+  <p style="color: red;">{{ error }}</p>
+{% endif %}
+<h2>Select a Quiz</h2>
+<a href="{% url 'start_quiz' %}">Start Quiz</a>
+<p><a href="{% url 'logout' %}">Logout</a></p>

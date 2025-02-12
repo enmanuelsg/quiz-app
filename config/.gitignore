@@ -1,0 +1,43 @@
+# Ignore SQLite database files
+*.sqlite3
+
+# Explicitly include db.sqlite3
+!db.sqlite3
+
+# Ignore all __pycache__ directories
+**/__pycache__/
+
+# Ignore all .pyc files
+**/*.pyc
+
+# Ignore all .pyo and .pyd files (less common, but related)
+**/*.pyo
+**/*.pyd
+
+# Ignore old/deleted files
+**/__old_DELTE__quiz/
+
+# Ignore environment-specific files
+english_assessment/english_assessment/settings.py
+
+# Ignore virtual environment directories
+venv/
+env/
+
+# Ignore IDE-specific files
+.vscode/
+.idea/
+
+# Ignore dependency directories
+node_modules/
+bower_components/
+
+# Ignore log files
+*.log
+
+# Ignore system-specific files
+.DS_Store
+Thumbs.db
+
+# Ignore local requirements file (if you have a global one)
+english_assessment/requirements.txt
