@@ -41,3 +41,5 @@ Thumbs.db
 
 # Ignore local requirements file (if you have a global one)
 english_assessment/requirements.txt
+
+.env
