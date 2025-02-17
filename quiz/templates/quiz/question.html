@@ -1,3 +1,7 @@
+{% extends "base.html" %}
+
+{% block content %}
+
 <h2>Question:</h2>
 <p>{{ question.text }}</p>
 
@@ -31,3 +35,4 @@
   {% endif %}
   <a href="{% url 'quiz_question' %}">Next Question</a>
 {% endif %}
+{% endblock %}

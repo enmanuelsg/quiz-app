@@ -1,4 +1,7 @@
-# Interactive English Assessment Website
+# Run the service
+python manage.py runserver
+
+# Interactive Quiz Website
 
 ## Overview
 A Django-based web application that evaluates a user's English proficiency via multiple-choice quizzes. Users can register, log in, select a quiz, and receive immediate feedback after each question.

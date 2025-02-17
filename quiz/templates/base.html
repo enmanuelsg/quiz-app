@@ -1,16 +1,74 @@
+{% load static %}
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}My Site{% endblock %}</title>
+  <meta charset="utf-8">
+  <title>Quiz App</title>
+  <link rel="stylesheet" href="{% static 'css/main.css' %}">
+  <style>
+    /* Navbar and dropdown styles */
+    .navbar {
+      background-color: #f8f8f8;
+      padding: 10px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .user-dropdown {
+      position: relative;
+      display: inline-block;
+    }
+    .user-dropdown-button {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px;
+      cursor: pointer;
+    }
+    .user-dropdown-content {
+      display: none;
+      position: absolute;
+      right: 0;
+      background-color: #f1f1f1;
+      min-width: 120px;
+      box-shadow: 0px 8px 16px rgba(0,0,0,0.2);
+      z-index: 1;
+    }
+    .user-dropdown-content a {
+      color: black;
+      padding: 8px 12px;
+      text-decoration: none;
+      display: block;
+    }
+    .user-dropdown-content a:hover {
+      background-color: #ddd;
+    }
+    /* Show menu on hover; you could also add JS for click */
+    .user-dropdown:hover .user-dropdown-content {
+      display: block;
+    }
+  </style>
 </head>
 <body>
-    <header>
-        <h1>Welcome to My Site</h1>
-    </header>
-    <main>
-        {% block content %}{% endblock %}
-    </main>
+  <nav class="navbar">
+    <div>
+      <a href="{% url 'home' %}">Quiz App</a>
+    </div>
+    <div>
+      {% if user.is_authenticated %}
+      <div class="user-dropdown">
+        <button class="user-dropdown-button">{{ user.username }}</button>
+        <div class="user-dropdown-content">
+          <a href="{% url 'logout' %}">Log Out</a>
+          <a href="{% url 'home' %}">Main Page</a>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </nav>
+  
+  <div class="content">
+    {% block content %}{% endblock %}
+  </div>
 </body>
 </html>
