@@ -1,3 +1,48 @@
-<h2>Quiz Completed</h2>
-<p>Your score: {{ score }} out of 5</p>
-<a href="{% url 'quiz_selection' %}">Back to Quiz Selection</a>
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<head>
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    <style>
+        .result-container {
+            max-width: 400px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        .result-container h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+        .score {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4CAF50;
+            margin-bottom: 20px;
+        }
+        .back-button {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        .back-button:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+
+<div class="result-container">
+    <h2>Quiz Completed</h2>
+    <p class="score">Your score: {{ score }} out of 5</p>
+    <a href="{% url 'quiz_selection' %}" class="back-button">Back to Quiz Selection</a>
+</div>
+
+{% endblock %}

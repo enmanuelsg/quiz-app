@@ -1,18 +1,77 @@
 {% extends "base.html" %}
+{% load static %}
+
 {% block content %}
-<h2>User Rankings</h2>
-<table id="ranking-table" border="1">
-    <thead>
-        <tr>
-            <th>Rank</th>
-            <th>Username</th>
-            <th>Total Quizzes</th>
-            <th>Correct Answers</th>
-            <th>Score</th>
-        </tr>
-    </thead>
-    <tbody></tbody>
-</table>
+<head>
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    <style>
+        .ranking-container {
+            max-width: 700px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        .ranking-container h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+        .ranking-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .ranking-table th, .ranking-table td {
+            padding: 12px;
+            text-align: center;
+            border-bottom: 1px solid #ddd;
+        }
+        .ranking-table th {
+            background: #4CAF50;
+            color: white;
+        }
+        .ranking-table tbody tr:nth-child(even) {
+            background: #f2f2f2;
+        }
+        .ranking-table tbody tr:hover {
+            background: #ddd;
+        }
+        .rank-1 {
+            background: #ffd700 !important; /* Gold */
+            font-weight: bold;
+        }
+        .rank-2 {
+            background: #c0c0c0 !important; /* Silver */
+            font-weight: bold;
+        }
+        .rank-3 {
+            background: #cd7f32 !important; /* Bronze */
+            font-weight: bold;
+        }
+        .leader-icon {
+            font-size: 18px;
+            margin-right: 5px;
+        }
+    </style>
+</head>
+
+<div class="ranking-container">
+    <h2>🏆 User Rankings 🏆</h2>
+    <table id="ranking-table" class="ranking-table">
+        <thead>
+            <tr>
+                <th>Rank</th>
+                <th>Username</th>
+                <th>Total Quizzes</th>
+                <th>Correct Answers</th>
+                <th>Score</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>
 
 <script>
     fetch('/api/rankings/')
@@ -22,8 +81,22 @@
             const tbody = document.querySelector("#ranking-table tbody");
             tbody.innerHTML = ""; 
             rankings.forEach((user, index) => {
-                let row = `<tr>
-                    <td>${index + 1}</td>
+                let rankClass = "";
+                let icon = "";
+
+                if (index === 0) {
+                    rankClass = "rank-1";
+                    icon = "🥇"; // Gold medal
+                } else if (index === 1) {
+                    rankClass = "rank-2";
+                    icon = "🥈"; // Silver medal
+                } else if (index === 2) {
+                    rankClass = "rank-3";
+                    icon = "🥉"; // Bronze medal
+                }
+
+                let row = `<tr class="${rankClass}">
+                    <td>${icon} ${index + 1}</td>
                     <td>${user.username}</td>
                     <td>${user.total_quiz}</td>
                     <td>${user.correct_quiz}</td>
@@ -34,4 +107,5 @@
         })
         .catch(error => console.error("Error loading rankings:", error));
 </script>
+
 {% endblock %}
