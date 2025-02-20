@@ -1,30 +1,30 @@
-{% load static %}  <!-- Ensure Django loads static files -->
+{% extends "base.html" %}
+{% load static %}
 
-<!DOCTYPE html>
-<html lang="en">
+{% block content %}
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>English Assessment Platform</title>
     <link rel="stylesheet" href="{% static 'css/styles.css' %}">
 </head>
-<body>
-    <header>
-        <h1>Welcome to the English Assessment Platform</h1>
-        <p>Your gateway to improving English proficiency through comprehensive assessments.</p>
-    </header>
-    
-    <nav>
-        <div class="nav-buttons">  <!-- Optional div for styling -->
-            <ul>
+
+<header>
+    <h1>Welcome to the English Assessment Platform</h1>
+    <p>Your gateway to improving English proficiency through comprehensive assessments.</p>
+</header>
+
+<nav>
+    <div class="nav-buttons">
+        <ul>
+            {% if user.is_authenticated %}
+                <li><a href="{% url 'quiz_selection' %}">Start Quiz</a></li>
+                <li><a href="{% url 'rankings_page' %}">Rankings</a></li>
+                <li><a href="{% url 'logout' %}">Logout</a></li>
+            {% else %}
                 <li><a href="{% url 'login' %}">Login</a></li>
                 <li><a href="{% url 'register' %}">Register</a></li>
                 <li><a href="{% url 'rankings_page' %}">Rankings</a></li>
-            </ul>
-        </div>
-    </nav>
-    
-    <!-- Additional content can go here -->
+            {% endif %}
+        </ul>
+    </div>
+</nav>
 
-</body>
-</html>
+{% endblock %}

@@ -1,38 +1,115 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block content %}
+<head>
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    <style>
+        .quiz-container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        .quiz-container h2 {
+            margin-bottom: 20px;
+        }
+        .question-text {
+            font-size: 18px;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        .options {
+            text-align: left;
+            margin: 15px 0;
+        }
+        .options label {
+            display: block;
+            padding: 10px;
+            background: #ffffff;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+        .options input {
+            margin-right: 10px;
+        }
+        .submit-btn {
+            width: 100%;
+            padding: 10px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .submit-btn:hover {
+            background: #45a049;
+        }
+        .feedback {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+        .explanation {
+            margin-top: 10px;
+            font-style: italic;
+        }
+        .next-btn {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        .next-btn:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
 
-<h2>Question:</h2>
-<p>{{ question.text }}</p>
+<div class="quiz-container">
+    <h2>Question</h2>
+    <p class="question-text">{{ question.text }}</p>
 
-{% if not answered %}
-  <form method="post">
-    {% csrf_token %}
-    <label>
-      <input type="radio" name="option" value="option1" required>
-      {{ question.option1 }}
-    </label><br>
-    <label>
-      <input type="radio" name="option" value="option2">
-      {{ question.option2 }}
-    </label><br>
-    <label>
-      <input type="radio" name="option" value="option3">
-      {{ question.option3 }}
-    </label><br>
-    <label>
-      <input type="radio" name="option" value="option4">
-      {{ question.option4 }}
-    </label><br>
-    <button type="submit">Submit Answer</button>
-  </form>
-{% endif %}
+    {% if not answered %}
+    <form method="post">
+        {% csrf_token %}
+        <div class="options">
+            <label>
+                <input type="radio" name="option" value="option1" required>
+                {{ question.option1 }}
+            </label>
+            <label>
+                <input type="radio" name="option" value="option2">
+                {{ question.option2 }}
+            </label>
+            <label>
+                <input type="radio" name="option" value="option3">
+                {{ question.option3 }}
+            </label>
+            <label>
+                <input type="radio" name="option" value="option4">
+                {{ question.option4 }}
+            </label>
+        </div>
+        <button type="submit" class="submit-btn">Submit Answer</button>
+    </form>
+    {% endif %}
 
-{% if feedback %}
-  <p>{{ feedback }}</p>
-  {% if question.explanation %}
-    <p>Explanation: {{ question.explanation }}</p>
-  {% endif %}
-  <a href="{% url 'quiz_question' %}">Next Question</a>
-{% endif %}
+    {% if feedback %}
+    <p class="feedback">{{ feedback }}</p>
+    {% if question.explanation %}
+        <p class="explanation">Explanation: {{ question.explanation }}</p>
+    {% endif %}
+    <a href="{% url 'quiz_question' %}" class="next-btn">Next Question</a>
+    {% endif %}
+</div>
+
 {% endblock %}

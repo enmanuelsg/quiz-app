@@ -1,6 +1,26 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<head>
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+</head>
+
+<header>
+    <h1>Select a Quiz</h1>
+</header>
+
+<nav>
+    <div class="nav-buttons">
+        <ul>
+            <li><a href="{% url 'start_quiz' %}">Start Quiz</a></li>
+            <li><a href="{% url 'logout' %}">Logout</a></li>
+        </ul>
+    </div>
+</nav>
+
 {% if error %}
   <p style="color: red;">{{ error }}</p>
 {% endif %}
-<h2>Select a Quiz</h2>
-<a href="{% url 'start_quiz' %}">Start Quiz</a>
-<p><a href="{% url 'logout' %}">Logout</a></p>
+
+{% endblock %}
