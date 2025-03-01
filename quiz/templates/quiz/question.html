@@ -10,6 +10,7 @@
     <h2>{{ quiz_name }} - Pregunta {{ index|add:1 }}</h2>
     <p class="question-text">{{ question.question_text }}</p>
 
+    {% if not answered %}
     <form method="post">
         {% csrf_token %}
         <div class="options">
@@ -32,6 +33,84 @@
         </div>
         <button type="submit" class="submit-btn">Submit Answer</button>
     </form>
+    {% endif %}
+
+    {% if feedback %}
+    <div class="response-section">
+        <p class="feedback">{{ feedback }}</p>
+        {% if question.explanation %}
+            <p class="explanation">Explanation: {{ question.explanation }}</p>
+        {% endif %}
+        <a href="{% url 'question_view' quiz_name=quiz_name index=index|add:1 %}" class="next-btn">
+            Next Question
+        </a>
+    </div>
+    {% endif %}
 </div>
 
+<style>
+    /* Maintain version 2 styling approach */
+    .quiz-container {
+        max-width: 600px;
+        margin: 50px auto;
+        padding: 20px;
+        background: #f9f9f9;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        text-align: center;
+    }
+    
+    .response-section {
+        margin-top: 20px;
+    }
+    
+    .feedback {
+        color: #2c3e50;
+        font-weight: bold;
+        margin: 15px 0;
+    }
+    
+    .explanation {
+        color: #7f8c8d;
+        font-style: italic;
+        margin-bottom: 20px;
+    }
+    
+    .next-btn {
+        display: inline-block;
+        padding: 10px 20px;
+        background: #007bff;
+        color: white;
+        text-decoration: none;
+        border-radius: 5px;
+        transition: background 0.3s ease;
+    }
+    
+    .next-btn:hover {
+        background: #0056b3;
+    }
+    
+    /* Keep existing version 2 styles from styles.css */
+    .options label {
+        display: block;
+        padding: 10px;
+        margin: 10px 0;
+        background: #fff;
+        border: 2px solid #3498db;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .submit-btn {
+        background: #3498db;
+        color: white;
+        padding: 12px 24px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 16px;
+        transition: background 0.3s ease;
+    }
+</style>
 {% endblock %}

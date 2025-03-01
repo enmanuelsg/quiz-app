@@ -2,13 +2,14 @@ from django.db import models
 from django.contrib.auth.models import User
 
 class Question(models.Model):
-    quiz_name = models.CharField(max_length=255)  # Identifica el quiz al que pertenece
+    quiz_name = models.CharField(max_length=255)
     question_text = models.TextField()
     option1 = models.CharField(max_length=255)
     option2 = models.CharField(max_length=255)
     option3 = models.CharField(max_length=255)
     option4 = models.CharField(max_length=255)
-    correct_option = models.CharField(max_length=255)  # La respuesta correcta
+    correct_option = models.CharField(max_length=255)  # Keep existing answer field
+    explanation = models.TextField(blank=True)  # Add this new field
 
     def __str__(self):
         return self.question_text

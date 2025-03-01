@@ -190,7 +190,8 @@ def generate_quiz_view(request):
                 option2=options[1],
                 option3=options[2],
                 option4=options[3],
-                correct_option=q.get("answer")
+                correct_option=q.get("answer"),
+                explanation=q.get("explanation", "")  # Add this line
             )
 
         messages.success(request, "Quiz generado correctamente. Presiona 'Start Quiz' para comenzar.")
@@ -253,47 +254,55 @@ def start_quiz_view(request, quiz_name):
     # Guarda en sesión la lista de IDs de preguntas, en orden
     request.session['question_ids'] = list(questions_qs.values_list('id', flat=True))
     request.session['current_index'] = 0  # Empezar en la primera pregunta
+    request.session['answered'] = False  # New session flag
+    request.session['feedback'] = ""  
 
     # Redirige a la vista que mostrará la primera pregunta
     return redirect('question_view', quiz_name=quiz_name, index=0)
 
 
 def question_view(request, quiz_name, index):
-    """
-    Muestra la pregunta con índice 'index' y maneja la respuesta del usuario.
-    """
     question_ids = request.session.get('question_ids', [])
-
-    # Si el índice excede el total de preguntas, podemos mostrar resultados o volver al menú
+    
     if index >= len(question_ids):
         messages.info(request, "Has completado el quiz.")
         return redirect('quiz_selection')
 
-    # Recuperar la pregunta correspondiente al índice
     question_id = question_ids[index]
     question = get_object_or_404(Question, id=question_id)
 
-    # Si el usuario envía la respuesta
     if request.method == 'POST':
         selected_option = request.POST.get('option')
-        if selected_option:
-            # Ejemplo: comparar con question.correct_option
-            if selected_option == question.correct_option:
-                messages.success(request, "¡Respuesta correcta!")
-            else:
-                messages.error(request, "Respuesta incorrecta.")
+        feedback = ""
+        answered = True
+
+        if selected_option == question.correct_option:
+            feedback = "¡Respuesta correcta!"
         else:
-            messages.warning(request, "Debes seleccionar una opción.")
+            feedback = f"Incorrecto. La respuesta correcta era {question.correct_option}."
 
-        # Pasar a la siguiente pregunta
-        next_index = index + 1
-        return redirect('question_view', quiz_name=quiz_name, index=next_index)
+        # Update session state
+        request.session['feedback'] = feedback
+        request.session['answered'] = True
+        
+        context = {
+            'quiz_name': quiz_name,
+            'question': question,
+            'index': index,
+            'feedback': feedback,
+            'answered': answered
+        }
+        return render(request, 'quiz/question.html', context)
 
-    # Renderizar la plantilla con la pregunta actual
+    # Reset state for new question
+    request.session['feedback'] = ""
+    request.session['answered'] = False
+    
     context = {
         'quiz_name': quiz_name,
         'question': question,
         'index': index,
-        # Puedes pasar más variables si necesitas
+        'feedback': "",
+        'answered': False
     }
     return render(request, 'quiz/question.html', context)
