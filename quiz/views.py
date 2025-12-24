@@ -1,3 +1,5 @@
+import logging
+from django.db import transaction
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, authenticate, logout
 from django.contrib.auth.decorators import login_required
@@ -8,7 +10,6 @@ from django.shortcuts import render
 from django.contrib import messages
 from .models import GeneratedQuiz
 from services.ai_integration import generate_quiz
-
 
 from .forms import RegistrationForm
 from .models import Question, QuizAttempt, Answer
@@ -71,65 +72,107 @@ def start_quiz(request):
 
     return redirect('quiz_question')
 
+
+logger = logging.getLogger(__name__)
+
 @login_required
+@transaction.atomic
 def quiz_question(request):
     # Validate session data first
     quiz_questions = request.session.get('quiz_questions')
     quiz_attempt_id = request.session.get('quiz_attempt_id')
     current_index = request.session.get('current_question', 0)
 
+    logger.info(f"Quiz Session Data - Questions: {quiz_questions}, Attempt ID: {quiz_attempt_id}, Current Index: {current_index}")
+
     # Redirect to start if session is invalid
     if not quiz_questions or not quiz_attempt_id:
+        logger.warning("Invalid quiz session data. Redirecting to start.")
+        messages.error(request, "Quiz session expired. Please start again.")
         return redirect('start_quiz')
 
     # Handle completed quiz
     if current_index >= len(quiz_questions):
         try:
-            attempt = QuizAttempt.objects.get(id=quiz_attempt_id)
-            # Calculate score from actual answers
-            attempt.score = attempt.answers.filter(is_correct=True).count()
-            attempt.save()
-            # Cleanup session
-            for key in ['quiz_questions', 'current_question', 'quiz_attempt_id', 'score']:
-                if key in request.session:
-                    del request.session[key]
-            return render(request, 'quiz/result.html', {'score': attempt.score})
+            with transaction.atomic():
+                attempt = QuizAttempt.objects.select_for_update().get(id=quiz_attempt_id)
+                # Calculate score based on stored answers
+                attempt.score = attempt.answers.filter(is_correct=True).count()
+                attempt.save()
+
+                # Clean up session data
+                for key in ['quiz_questions', 'current_question', 'quiz_attempt_id', 'score']:
+                    if key in request.session:
+                        del request.session[key]
+
+                logger.info(f"Quiz completed. User {request.user.username}, Score: {attempt.score}")
+                return render(request, 'quiz/result.html', {'score': attempt.score})
         except QuizAttempt.DoesNotExist:
-            # Handle invalid attempt ID
+            logger.error(f"Quiz attempt not found. Attempt ID: {quiz_attempt_id}")
+            messages.error(request, "Quiz attempt not found. Please start again.")
+            return redirect('start_quiz')
+        except Exception as e:
+            logger.critical(f"Unexpected error in quiz completion: {e}")
+            messages.error(request, "An unexpected error occurred. Please try again.")
             return redirect('start_quiz')
 
     # Get current question
-    question_id = quiz_questions[current_index]
-    question = get_object_or_404(Question, id=question_id)
+    try:
+        question_id = quiz_questions[current_index]
+        question = get_object_or_404(Question, id=question_id)
+    except IndexError:
+        logger.error(f"Invalid question index. Current index: {current_index}")
+        messages.error(request, "Invalid quiz progression. Please start again.")
+        return redirect('start_quiz')
 
     # Process answer submission
     if request.method == 'POST':
         selected_option = request.POST.get('option')
+        
+        if not selected_option:
+            logger.warning("No option selected")
+            messages.warning(request, "Please select an answer.")
+            return render(request, 'quiz/question.html', {'question': question})
+
         is_correct = (selected_option == question.correct_option)
 
         try:
-            # Save answer to database
-            attempt = QuizAttempt.objects.get(id=quiz_attempt_id)
-            Answer.objects.create(
-                quiz_attempt=attempt,
-                question=question,
-                selected_option=selected_option,
-                is_correct=is_correct
-            )
+            with transaction.atomic():
+                attempt = QuizAttempt.objects.select_for_update().get(id=quiz_attempt_id)
+                
+                # Save the answer, using get_or_create to avoid duplicate entries
+                answer, created = Answer.objects.get_or_create(
+                    quiz_attempt=attempt,
+                    question=question,
+                    defaults={
+                        'selected_option': selected_option,
+                        'is_correct': is_correct
+                    }
+                )
+                logger.info(f"Answer created: {answer} (created: {created})")
+                print(f"--> Answer created: {answer} (created: {created})")
+                if not created:
+                    logger.warning(f"Duplicate answer detected for question {question.id}")
+
+                # Update session for the next question
+                request.session['current_question'] = current_index + 1
         except QuizAttempt.DoesNotExist:
+            logger.error(f"Quiz attempt not found during answer submission. Attempt ID: {quiz_attempt_id}")
+            messages.error(request, "Quiz session expired. Please start again.")
             return redirect('start_quiz')
-
-        # Prepare feedback and advance
-        request.session['current_question'] = current_index + 1
-        feedback = 'Correct!' if is_correct else f'Incorrect. The right answer was {question.correct_option}'
-        return render(request, 'quiz/question.html', {
-            'question': question,
-            'feedback': feedback,
-            'answered': True
-        })
-
-    # Display unanswered question
+        except Exception as e:
+            logger.critical(f"Unexpected error in answer submission: {e}")
+            messages.error(request, "An unexpected error occurred while processing your answer.")
+            return redirect('start_quiz')
+        
+        # Set feedback message using Django's messages framework
+        feedback = "Correct!" if is_correct else f"Incorrect. The right answer was {question.correct_option}."
+        messages.info(request, feedback)
+        return redirect('quiz_question')
+    
+    # Display unanswered question on GET
     return render(request, 'quiz/question.html', {'question': question})
+
 
 
 def user_rankings(request):
@@ -149,10 +192,6 @@ def user_rankings(request):
         rankings = [dict(zip(columns, row)) for row in cursor.fetchall()]
 
     return JsonResponse({"rankings": rankings})
-
-
-
-
 
 def generate_quiz_view(request):
     if request.method == "POST":
@@ -208,101 +247,75 @@ def quiz_question_view(request, quiz_name):
 
 
 
-def start_quiz_view_old(request, quiz_name):
-    # Obtenemos la primera pregunta (o la siguiente según tu lógica)
-    question = Question.objects.filter(quiz_name=quiz_name).first()
-
-    if not question:
-        messages.error(request, "No hay preguntas para este quiz.")
-        return redirect("quiz_selection")  # Ajusta a tu URL de selección
-
-    # Opcional: Determinar si ya se respondió
-    answered = False
-    feedback = ""
-
-    # Si la solicitud es POST, manejamos la respuesta
-    if request.method == "POST":
-        selected_option = request.POST.get("option")
-        if selected_option:
-            # Comparamos la opción elegida con la correcta
-            if selected_option == question.correct_option:
-                feedback = "Correct!"
-            else:
-                feedback = f"Incorrect. La respuesta correcta era {question.correct_option}."
-            answered = True
-
-    context = {
-        "question": question,     # Enviamos UN solo objeto
-        "answered": answered,
-        "feedback": feedback
-    }
-    return render(request, "quiz/question.html", context)
-
-
-
 def start_quiz_view(request, quiz_name):
     """
-    Prepara el quiz, guarda en la sesión las preguntas que se deben contestar y redirige a la primera.
+    Prepara el quiz: guarda en sesión los IDs de las preguntas y redirige a la primera.
     """
-    # Filtra las preguntas asociadas al quiz
     questions_qs = Question.objects.filter(quiz_name=quiz_name)
-
     if not questions_qs.exists():
         messages.error(request, f"No hay preguntas para el quiz '{quiz_name}'.")
         return redirect('quiz_selection')
 
-    # Guarda en sesión la lista de IDs de preguntas, en orden
     request.session['question_ids'] = list(questions_qs.values_list('id', flat=True))
-    request.session['current_index'] = 0  # Empezar en la primera pregunta
-    request.session['answered'] = False  # New session flag
-    request.session['feedback'] = ""  
-
-    # Redirige a la vista que mostrará la primera pregunta
+    request.session['current_score'] = 0  # (Opcional) Para llevar puntaje
+    request.session['total_questions'] = questions_qs.count()
+    request.session['quiz_name'] = quiz_name
     return redirect('question_view', quiz_name=quiz_name, index=0)
 
 
 def question_view(request, quiz_name, index):
+    # Recupera la lista de IDs guardada en la sesión
     question_ids = request.session.get('question_ids', [])
-    
     if index >= len(question_ids):
-        messages.info(request, "Has completado el quiz.")
-        return redirect('quiz_selection')
-
-    question_id = question_ids[index]
-    question = get_object_or_404(Question, id=question_id)
-
+        return redirect('result', quiz_name=quiz_name)
+    
+    # Obtiene la pregunta actual
+    question = get_object_or_404(Question, id=question_ids[index])
+    
+    # Si se envía una respuesta
     if request.method == 'POST':
         selected_option = request.POST.get('option')
-        feedback = ""
-        answered = True
-
-        if selected_option == question.correct_option:
-            feedback = "¡Respuesta correcta!"
+        if not selected_option:
+            messages.warning(request, "Debes seleccionar una opción.")
+            context = {
+                'quiz_name': quiz_name,
+                'question': question,
+                'index': index
+            }
+            return render(request, 'quiz/question.html', context)
         else:
-            feedback = f"Incorrecto. La respuesta correcta era {question.correct_option}."
-
-        # Update session state
-        request.session['feedback'] = feedback
-        request.session['answered'] = True
-        
-        context = {
-            'quiz_name': quiz_name,
-            'question': question,
-            'index': index,
-            'feedback': feedback,
-            'answered': answered
-        }
-        return render(request, 'quiz/question.html', context)
-
-    # Reset state for new question
-    request.session['feedback'] = ""
-    request.session['answered'] = False
+            # Define el mensaje de retroalimentación según corresponda
+            if selected_option == question.correct_option:
+                feedback = "¡Respuesta correcta!"
+            else:
+                feedback = "Respuesta incorrecta."
+            
+            # En lugar de redirigir, renderiza la misma página con feedback
+            context = {
+                'quiz_name': quiz_name,
+                'question': question,
+                'index': index,
+                'feedback': feedback  # Este valor activa el bloque en question.html
+            }
+            return render(request, 'quiz/question.html', context)
     
+    # En GET, muestra la pregunta sin feedback
     context = {
         'quiz_name': quiz_name,
         'question': question,
-        'index': index,
-        'feedback': "",
-        'answered': False
+        'index': index
     }
     return render(request, 'quiz/question.html', context)
+
+def result_view(request, quiz_name):
+    """
+    Muestra la página de resultados cuando se completa el quiz.
+    """
+    total = request.session.get('total_questions', 0)
+    score = request.session.get('current_score', 0)
+    context = {
+        'quiz_name': quiz_name,
+        'total_questions': total,
+        'score': score,
+    }
+    return render(request, 'quiz/result.html', context)

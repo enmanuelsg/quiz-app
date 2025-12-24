@@ -63,7 +63,7 @@ def generate_quiz(text, quiz_name, model="gpt-4o-mini", max_tokens=500):
 
         result_text = response.choices[0].message.content.strip()
         quiz_data = json.loads(result_text)
-        print(quiz_data)
+        #print(quiz_data)
         quiz_data = validate_answers(quiz_data)  # Validate answer correctness
 
         return quiz_data

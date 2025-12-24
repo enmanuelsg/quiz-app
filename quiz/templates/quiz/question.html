@@ -10,7 +10,7 @@
     <h2>{{ quiz_name }} - Pregunta {{ index|add:1 }}</h2>
     <p class="question-text">{{ question.question_text }}</p>
 
-    {% if not answered %}
+    {% if not feedback %}
     <form method="post">
         {% csrf_token %}
         <div class="options">
