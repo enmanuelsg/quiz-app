@@ -249,7 +249,8 @@ def quiz_question_view(request, quiz_name):
 
 def start_quiz_view(request, quiz_name):
     """
-    Prepara el quiz: guarda en sesión los IDs de las preguntas y redirige a la primera.
+    Prepara el quiz: guarda en sesión los IDs de las preguntas, crea un QuizAttempt persistente
+    y redirige a la primera pregunta.
     """
     questions_qs = Question.objects.filter(quiz_name=quiz_name)
     if not questions_qs.exists():
@@ -257,10 +258,17 @@ def start_quiz_view(request, quiz_name):
         return redirect('quiz_selection')
 
     request.session['question_ids'] = list(questions_qs.values_list('id', flat=True))
-    request.session['current_score'] = 0  # (Opcional) Para llevar puntaje
+    request.session['current_score'] = 0
     request.session['total_questions'] = questions_qs.count()
     request.session['quiz_name'] = quiz_name
+
+    # Crear un QuizAttempt persistente si el usuario está autenticado
+    if request.user.is_authenticated:
+        attempt = QuizAttempt.objects.create(user=request.user, score=0)
+        request.session['quiz_attempt_id'] = attempt.id
+
     return redirect('question_view', quiz_name=quiz_name, index=0)
+
 
 
 def question_view(request, quiz_name, index):
@@ -284,18 +292,51 @@ def question_view(request, quiz_name, index):
             }
             return render(request, 'quiz/question.html', context)
         else:
-            # Define el mensaje de retroalimentación según corresponda
-            if selected_option == question.correct_option:
+            # Determinar si es correcta
+            is_correct = (selected_option == question.correct_option)
+
+            # Guardar/actualizar Answer si existe un QuizAttempt creado
+            attempt_id = request.session.get('quiz_attempt_id')
+            if attempt_id:
+                try:
+                    attempt = QuizAttempt.objects.get(id=attempt_id)
+                    Answer.objects.update_or_create(
+                        quiz_attempt=attempt,
+                        question=question,
+                        defaults={
+                            'selected_option': selected_option,
+                            'is_correct': is_correct
+                        }
+                    )
+                except QuizAttempt.DoesNotExist:
+                    # Si no existe el intento en DB, podemos ignorar o loggear
+                    pass
+
+            # Actualizar score en sesión (UX inmediata)
+            if is_correct:
+                request.session['current_score'] = request.session.get('current_score', 0) + 1
+
+            # Si era la última pregunta, calcular y persistir score final en QuizAttempt
+            if index + 1 >= len(question_ids):
+                if attempt_id:
+                    try:
+                        attempt = QuizAttempt.objects.get(id=attempt_id)
+                        attempt.score = attempt.answers.filter(is_correct=True).count()
+                        attempt.save()
+                    except QuizAttempt.DoesNotExist:
+                        pass
+
+            # Definir el feedback y renderizar la misma página con feedback
+            if is_correct:
                 feedback = "¡Respuesta correcta!"
             else:
                 feedback = "Respuesta incorrecta."
             
-            # En lugar de redirigir, renderiza la misma página con feedback
             context = {
                 'quiz_name': quiz_name,
                 'question': question,
                 'index': index,
-                'feedback': feedback  # Este valor activa el bloque en question.html
+                'feedback': feedback
             }
             return render(request, 'quiz/question.html', context)
     
@@ -307,10 +348,33 @@ def question_view(request, quiz_name, index):
     }
     return render(request, 'quiz/question.html', context)
 
+
 def result_view(request, quiz_name):
     """
     Muestra la página de resultados cuando se completa el quiz.
+    Si existe un QuizAttempt en sesión, lee el resultado desde la DB (más confiable).
     """
+    attempt_id = request.session.get('quiz_attempt_id')
+    if attempt_id:
+        try:
+            attempt = QuizAttempt.objects.get(id=attempt_id)
+            total = attempt.answers.count() or request.session.get('total_questions', 0)
+            score = attempt.score
+            context = {
+                'quiz_name': quiz_name,
+                'total_questions': total,
+                'score': score,
+            }
+            # Limpiar datos de sesión del quiz
+            for key in ['question_ids', 'current_score', 'total_questions', 'quiz_name', 'quiz_attempt_id']:
+                if key in request.session:
+                    del request.session[key]
+            return render(request, 'quiz/result.html', context)
+        except QuizAttempt.DoesNotExist:
+            # fallback a valores en sesión si por algún motivo no encontramos el intento
+            pass
+
+    # Fallback: usar valores en sesión
     total = request.session.get('total_questions', 0)
     score = request.session.get('current_score', 0)
     context = {
@@ -318,4 +382,8 @@ def result_view(request, quiz_name):
         'total_questions': total,
         'score': score,
     }
+    # limpiar session keys usadas por este flujo
+    for key in ['question_ids', 'current_score', 'total_questions', 'quiz_name', 'quiz_attempt_id']:
+        if key in request.session:
+            del request.session[key]
     return render(request, 'quiz/result.html', context)

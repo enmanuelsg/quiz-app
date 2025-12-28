@@ -8,7 +8,7 @@ A Django-based web application that evaluates a user's English proficiency via m
 
 ## Features
 - User registration and login (with password hashing)
-- Random selection of 5 quiz questions per attempt
+- Random selection of N quiz questions per attempt
 - Immediate feedback (correct/incorrect with an explanation)
 - Quiz attempt history stored in the database
 - Responsive, clean UI via Django templates
