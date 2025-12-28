@@ -1,0 +1,23 @@
+<!-- quiz-app/templates/quiz/quiz_question.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ quiz.quiz_name }}</title>
+</head>
+<body>
+    <h1>{{ quiz.quiz_name }}</h1>
+    <ul>
+        {% for question in quiz.questions %}
+            <li>
+                <strong>{{ question.question }}</strong>
+                <ul>
+                    {% for option in question.options %}
+                        <li>{{ option }}</li>
+                    {% endfor %}
+                </ul>
+                <p>Respuesta correcta: {{ question.answer }}</p>
+            </li>
+        {% endfor %}
+    </ul>
+</body>
+</html>

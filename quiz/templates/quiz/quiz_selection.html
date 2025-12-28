@@ -13,7 +13,10 @@
 <nav>
     <div class="nav-buttons">
         <ul>
-            <li><a href="{% url 'start_quiz' %}">Start Quiz</a></li>
+            {% for q in quizzes %}
+            <li><a href="{% url 'start_quiz' q.quiz_name %}">Start Quiz: {{ q.quiz_name }}</a></li>
+            {% endfor %}
+        
             <li><a href="{% url 'logout' %}">Logout</a></li>
         </ul>
     </div>
@@ -22,5 +25,33 @@
 {% if error %}
   <p style="color: red;">{{ error }}</p>
 {% endif %}
+
+<form action="{% url 'generate_quiz' %}" method="post">
+    {% csrf_token %}
+    <div>
+        <label for="quiz_name">Nombre del Quiz:</label>
+        <input type="text" id="quiz_name" name="quiz_name" required>
+    </div>
+    <div>
+        <label for="source_text">Texto para generar el Quiz:</label>
+        <textarea id="source_text" name="source_text" rows="10" required></textarea>
+    </div>
+    <button type="submit">Generar Quiz con IA</button>
+</form>
+
+<h1>{{ quiz.quiz_name }}</h1>
+<ul>
+    {% for question in quiz.questions %}
+        <li>
+            <strong>{{ question.question }}</strong>
+            <ul>
+                {% for option in question.options %}
+                    <li>{{ option }}</li>
+                {% endfor %}
+            </ul>
+            <p>Respuesta correcta: {{ question.answer }}</p>
+        </li>
+    {% endfor %}
+</ul>
 
 {% endblock %}
