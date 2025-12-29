@@ -12,13 +12,20 @@
 
 <nav>
     <div class="nav-buttons">
-        <ul>
-            {% for q in quizzes %}
-            <li><a href="{% url 'start_quiz' q.quiz_name %}">Start Quiz: {{ q.quiz_name }}</a></li>
-            {% endfor %}
-        
-            <li><a href="{% url 'logout' %}">Logout</a></li>
-        </ul>
+        <!-- Dropdown to choose a previous quiz -->
+        <form id="select-quiz-form" onsubmit="startSelectedQuiz(event)" style="display:inline-block; margin-right:1rem;">
+            <label for="previous_quiz_select">Previous quizzes:</label>
+            <select id="previous_quiz_select" name="previous_quiz">
+                <option value="">-- Select a previous quiz --</option>
+                {% for q in quizzes %}
+                    <option value="{{ q.generated_quiz }}">{{ q.generated_quiz }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit">Start Selected Quiz</button>
+        </form>
+
+        <!-- Logout link -->
+        <a href="{% url 'logout' %}">Logout</a>
     </div>
 </nav>
 
@@ -29,7 +36,7 @@
 <form action="{% url 'generate_quiz' %}" method="post">
     {% csrf_token %}
     <div>
-        <label for="quiz_name">Nombre del Quiz:</label>
+        <label for="quiz_name">Quiz Name:</label>
         <input type="text" id="quiz_name" name="quiz_name" required>
     </div>
     <div>
@@ -39,6 +46,8 @@
     <button type="submit">Generar Quiz con IA</button>
 </form>
 
+{# Optional preview: only show when `quiz` is provided in context #}
+{% if quiz %}
 <h1>{{ quiz.quiz_name }}</h1>
 <ul>
     {% for question in quiz.questions %}
@@ -53,5 +62,27 @@
         </li>
     {% endfor %}
 </ul>
+{% endif %}
+
+<script>
+function startSelectedQuiz(event) {
+    event.preventDefault();
+    const select = document.getElementById('previous_quiz_select');
+    const val = select.value;
+    if (!val) {
+        alert('Please select a quiz.');
+        return;
+    }
+    // Redirect to start_quiz route using the selected generated_quiz identifier
+    const encoded = encodeURIComponent(val);
+    window.location.href = `/start-quiz/${encoded}/`;
+}
+
+// Optional: redirect immediately when user changes selection
+document.getElementById('previous_quiz_select').addEventListener('change', function() {
+    // Uncomment next line to enable auto-redirect on change
+    // if (this.value) window.location.href = `/start-quiz/${encodeURIComponent(this.value)}/`;
+});
+</script>
 
 {% endblock %}

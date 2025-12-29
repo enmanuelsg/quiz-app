@@ -15,6 +15,13 @@ from .forms import RegistrationForm
 from .models import Question, QuizAttempt, Answer
 import random
 
+from datetime import datetime
+import secrets
+
+def _make_unique_name(base_name):
+    ts = datetime.utcnow().strftime("%Y%m%dT%H%M%S")  # UTC timestamp preciso a segundos
+    rand = secrets.token_hex(3)  # 6 hex chars = 3 bytes, baja probabilidad de colisión
+    return f"{base_name}-{ts}-{rand}"
 
 def home(request):
     return render(request, 'home.html')
@@ -52,7 +59,9 @@ def logout_view(request):
 
 @login_required
 def quiz_selection(request):
-    return render(request, 'quiz/quiz_selection.html')
+    # Listar quizzes generados (los más recientes primero)
+    quizzes = GeneratedQuiz.objects.order_by('-generation_date')
+    return render(request, 'quiz/quiz_selection.html', {'quizzes': quizzes})
 
 @login_required
 def start_quiz(request):
@@ -198,6 +207,8 @@ def generate_quiz_view(request):
         quiz_name = request.POST.get("quiz_name")
         source_text = request.POST.get("source_text")
 
+        unique_name = _make_unique_name(quiz_name)
+
         if not quiz_name or not source_text:
             messages.error(request, "Debes ingresar un nombre y un texto.")
             return redirect("quiz_selection")
@@ -210,8 +221,9 @@ def generate_quiz_view(request):
 
         # (Opcional) Guardar el registro completo del quiz generado por IA
         GeneratedQuiz.objects.create(
-            generated_quiz=quiz_name,
-            user=request.user,
+            generated_quiz=unique_name,
+            #base_name=quiz_name,
+            user=request.user if request.user.is_authenticated else None,
             source_text=source_text,
             model_name="OpenAI gpt-3.5-turbo",
             quiz_data=quiz_data
@@ -223,7 +235,7 @@ def generate_quiz_view(request):
             if len(options) < 4:
                 continue  # O bien manejar el error de formato
             Question.objects.create(
-                quiz_name=quiz_name,
+                quiz_name=unique_name,
                 question_text=q.get("question"),
                 option1=options[0],
                 option2=options[1],
@@ -235,7 +247,7 @@ def generate_quiz_view(request):
 
         messages.success(request, "Quiz generado correctamente. Presiona 'Start Quiz' para comenzar.")
         # Redirige a la vista que inicia el quiz; se asume que usa el parámetro quiz_name para buscar las preguntas
-        return redirect("start_quiz", quiz_name=quiz_name)
+        return redirect("start_quiz", quiz_name=unique_name)
     else:
         return render(request, "quiz/quiz_selection.html")
 
