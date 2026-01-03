@@ -135,6 +135,11 @@ def quiz_feed_api(request):
         }
     )
 
+
+@login_required
+def quiz_feed(request):
+    return render(request, 'quiz/feed.html')
+
 @login_required
 def start_quiz(request):
     question_ids = list(Question.objects.values_list('id', flat=True))

@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+  <style>
+    html, body {
+      height: 100%;
+    }
+
+    .content {
+      padding: 0;
+    }
+
+    .feed-page {
+      min-height: calc(100vh - 60px);
+      background: #f5f7fb;
+    }
+
+    .feed-item {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+    }
+
+    .feed-card {
+      width: min(720px, 92vw);
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+      padding: 28px 32px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .feed-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin: 0;
+    }
+
+    .feed-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      color: #475569;
+      font-size: 0.95rem;
+    }
+
+    .feed-metric {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #e2e8f0;
+      font-weight: 500;
+    }
+
+    .feed-actions {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .feed-actions a {
+      background: #2563eb;
+      color: #ffffff;
+      text-decoration: none;
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+
+    .feed-empty {
+      min-height: 60vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #64748b;
+      font-size: 1.1rem;
+    }
+
+    .feed-loading {
+      text-align: center;
+      padding: 24px 0 48px;
+      color: #1e293b;
+      font-weight: 600;
+    }
+
+    .feed-loading.hidden {
+      display: none;
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <main class="feed-page">
+    <div id="feed-container"></div>
+    <div id="feed-empty" class="feed-empty" hidden>
+      Todavía no hay quizzes generados.
+    </div>
+    <div id="feed-loading" class="feed-loading hidden">Cargando más quizzes...</div>
+  </main>
+
+  <script>
+    const feedContainer = document.getElementById('feed-container');
+    const feedLoading = document.getElementById('feed-loading');
+    const feedEmpty = document.getElementById('feed-empty');
+
+    const pageState = {
+      page: 1,
+      size: 5,
+      loading: false,
+      done: false,
+    };
+
+    const apiUrl = new URL('{% url "quiz_feed_api" %}', window.location.origin);
+
+    const renderItem = (quiz) => {
+      const wrapper = document.createElement('section');
+      wrapper.className = 'feed-item';
+      const generatedDate = new Date(quiz.generation_date);
+      const accuracyText = quiz.accuracy_rate === null
+        ? 'Sin datos'
+        : `${Math.round(quiz.accuracy_rate * 100)}% precisión`;
+
+      wrapper.innerHTML = `
+        <article class="feed-card">
+          <h2 class="feed-title">${quiz.generated_quiz}</h2>
+          <div class="feed-meta">
+            <span>${generatedDate.toLocaleString()}</span>
+            <span class="feed-metric">${quiz.attempts} intentos</span>
+            <span class="feed-metric">${accuracyText}</span>
+          </div>
+          <div class="feed-actions">
+            <a href="/start-quiz/${encodeURIComponent(quiz.generated_quiz)}/">Jugar quiz</a>
+          </div>
+        </article>
+      `;
+      return wrapper;
+    };
+
+    const toggleLoading = (isLoading) => {
+      feedLoading.classList.toggle('hidden', !isLoading);
+    };
+
+    const loadPage = async () => {
+      if (pageState.loading || pageState.done) {
+        return;
+      }
+      pageState.loading = true;
+      toggleLoading(true);
+      let hadError = false;
+      feedLoading.textContent = 'Cargando más quizzes...';
+
+      apiUrl.searchParams.set('page', pageState.page);
+      apiUrl.searchParams.set('size', pageState.size);
+
+      try {
+        const response = await fetch(apiUrl.toString(), {
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Error al cargar el feed');
+        }
+
+        const data = await response.json();
+        if (data.results.length === 0 && pageState.page === 1) {
+          feedEmpty.hidden = false;
+          pageState.done = true;
+          return;
+        }
+
+        data.results.forEach((quiz) => {
+          feedContainer.appendChild(renderItem(quiz));
+        });
+
+        const totalLoaded = pageState.page * pageState.size;
+        if (totalLoaded >= data.total) {
+          pageState.done = true;
+        } else {
+          pageState.page += 1;
+        }
+      } catch (error) {
+        feedLoading.textContent = 'No se pudo cargar el feed. Intenta de nuevo.';
+        hadError = true;
+      } finally {
+        pageState.loading = false;
+        toggleLoading(hadError);
+      }
+    };
+
+    const handleScroll = () => {
+      if (pageState.done || pageState.loading) {
+        return;
+      }
+      const scrollBottom = window.innerHeight + window.scrollY;
+      const threshold = document.body.offsetHeight - 300;
+      if (scrollBottom >= threshold) {
+        loadPage();
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('load', () => {
+      loadPage();
+    });
+  </script>
+{% endblock %}
