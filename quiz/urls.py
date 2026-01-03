@@ -21,6 +21,7 @@ urlpatterns = [
     path('register/', views.register_view, name='register'),
     path('rankings/', views.rankings_page, name='rankings_page'),
     path('api/rankings/', user_rankings, name='api_rankings'),
+    path('api/quiz-feed/', views.quiz_feed_api, name='quiz_feed_api'),
     path('logout/', views.logout_view, name='logout'),
     path('quiz_selection/', views.quiz_selection, name='quiz_selection'),
 
