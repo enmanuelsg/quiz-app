@@ -24,6 +24,15 @@ A Django-based web application that evaluates a user's English proficiency via m
 - located in english_assessment
 - run: python manage.py runserver
 
+## Environment Variables
+Set these variables before running the app (for example, via a `.env` file if using
+`python-decouple`):
+
+- `SECRET_KEY` (required): Django secret key used for cryptographic signing.
+- `OPENAI_API_KEY` (required for quiz generation): Used by `services/ai_integration.py`
+  to access the OpenAI API.
+- `DJANGO_SETTINGS_MODULE` (optional): Defaults to `config.settings` in
+  `config/asgi.py` and `config/wsgi.py`.
 ---
 
 ### Table Documentation  
