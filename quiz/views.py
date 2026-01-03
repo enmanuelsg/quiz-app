@@ -1,5 +1,6 @@
 import logging
 from django.db import transaction
+from django.db.models import Case, Count, IntegerField, Sum, When
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, authenticate, logout
 from django.contrib.auth.decorators import login_required
@@ -62,6 +63,77 @@ def quiz_selection(request):
     # Listar quizzes generados (los más recientes primero)
     quizzes = GeneratedQuiz.objects.order_by('-generation_date')
     return render(request, 'quiz/quiz_selection.html', {'quizzes': quizzes})
+
+def quiz_feed_api(request):
+    page = request.GET.get('page', '1')
+    size = request.GET.get('size', '20')
+
+    try:
+        page = max(int(page), 1)
+    except (TypeError, ValueError):
+        page = 1
+
+    try:
+        size = max(int(size), 1)
+    except (TypeError, ValueError):
+        size = 20
+
+    size = min(size, 100)
+
+    quizzes_qs = GeneratedQuiz.objects.order_by('-generation_date')
+    total = quizzes_qs.count()
+    start = (page - 1) * size
+    end = start + size
+    page_quizzes = list(quizzes_qs[start:end])
+
+    quiz_names = [quiz.generated_quiz for quiz in page_quizzes]
+    metrics_map = {}
+    if quiz_names:
+        metrics_rows = (
+            Answer.objects.filter(question__quiz_name__in=quiz_names)
+            .values('question__quiz_name')
+            .annotate(
+                attempts=Count('quiz_attempt', distinct=True),
+                correct=Sum(
+                    Case(
+                        When(is_correct=True, then=1),
+                        default=0,
+                        output_field=IntegerField(),
+                    )
+                ),
+                total=Count('id'),
+            )
+        )
+        for row in metrics_rows:
+            metrics_map[row['question__quiz_name']] = row
+
+    results = []
+    for quiz in page_quizzes:
+        metrics = metrics_map.get(quiz.generated_quiz, {})
+        total_answers = metrics.get('total', 0)
+        correct_answers = metrics.get('correct', 0)
+        accuracy_rate = None
+        if total_answers:
+            accuracy_rate = round(correct_answers / total_answers, 4)
+
+        results.append(
+            {
+                'id': quiz.id,
+                'generated_quiz': quiz.generated_quiz,
+                'generation_date': quiz.generation_date.isoformat(),
+                'attempts': metrics.get('attempts', 0),
+                'accuracy_rate': accuracy_rate,
+            }
+        )
+
+    return JsonResponse(
+        {
+            'page': page,
+            'size': size,
+            'total': total,
+            'results': results,
+        }
+    )
 
 @login_required
 def start_quiz(request):
